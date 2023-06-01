@@ -6,6 +6,7 @@ use crate::{
     typesystem::DINT_TYPE,
     Diagnostic,
 };
+use log::{trace};
 
 use self::{
     control_parser::parse_control_statement,
@@ -24,6 +25,7 @@ pub fn parse(mut lexer: ParseSession, lnk: LinkageType, file_name: &str) -> Pars
 
     let mut linkage = lnk;
     loop {
+        trace!("token: {:?}", lexer.token);
         match lexer.token {
             PropertyExternal => {
                 linkage = LinkageType::External;
@@ -110,7 +112,7 @@ fn parse_actions(
 }
 
 ///
-/// parse a pou
+/// parse a pou - program organization unit
 /// # Arguments
 ///
 /// * `lexer`       - the lexer
@@ -124,6 +126,9 @@ fn parse_pou(
     linkage: LinkageType,
     expected_end_token: lexer::Token,
 ) -> (Vec<Pou>, Vec<Implementation>) {
+    trace!("pou_type: {:?}", pou_type);
+    trace!("lexer start: {:?}", lexer.range().start);
+    trace!("expected_end_token: {:?}", expected_end_token);
     let start = lexer.range().start;
     lexer.advance(); //Consume ProgramKeyword
     let closing_tokens = vec![
@@ -144,8 +149,11 @@ fn parse_pou(
 
         let (name, name_location) =
             parse_identifier(lexer).unwrap_or_else(|| ("".to_string(), SourceRange::undefined())); // parse POU name
+        trace!("name: {:?}", name);
+        trace!("name_location: {:?}", name_location);
 
         let generics = parse_generics(lexer);
+        trace!("generics: {generics:?}");
 
         with_scope(lexer, name.clone(), |lexer| {
             // TODO: Parse USING directives
@@ -159,6 +167,7 @@ fn parse_pou(
                 // classes do not have a return type
                 None
             };
+            trace!("return_type: {:?}", return_type);
 
             // parse variable declarations. note that var in/out/inout
             // blocks are not allowed inside of class declarations.
@@ -170,6 +179,7 @@ fn parse_pou(
             while allowed_var_types.contains(&lexer.token) {
                 variable_blocks.push(parse_variable_block(lexer, LinkageType::Internal));
             }
+            trace!("variable_blocks: {variable_blocks:?}");
 
             let mut impl_pous = vec![];
             let mut implementations = vec![];
@@ -186,6 +196,8 @@ fn parse_pou(
                     }
                 }
             }
+            trace!("implementations after class and functions {implementations:?}");
+            // this is where the main body of the program is parsed
             if pou_type != PouType::Class {
                 // a class may not contain an implementation
                 implementations.push(parse_implementation(
@@ -211,6 +223,7 @@ fn parse_pou(
             }];
             pous.append(&mut impl_pous);
 
+            trace!("implementations final (after non-class/non-func): {implementations:?}");
             (pous, implementations)
         })
     });
@@ -439,8 +452,10 @@ fn parse_implementation(
     generic: bool,
     name_location: SourceRange,
 ) -> Implementation {
+    trace!("beginning parse at {}", lexer.range().start);
     let start = lexer.range().start;
     let statements = parse_body_standalone(lexer);
+    trace!("end parse at {}", lexer.range().end);
     Implementation {
         name: call_name.into(),
         type_name: type_name.into(),
@@ -851,6 +866,10 @@ fn parse_body_standalone(lexer: &mut ParseSession) -> Vec<AstStatement> {
 /// parses a statement ending with a ';'
 fn parse_statement(lexer: &mut ParseSession) -> AstStatement {
     let result = parse_any_in_region(lexer, vec![KeywordSemicolon, KeywordColon], parse_expression);
+    trace!("parse result: {result:#?}");
+
+    lexer.do_callback_on_parse_statement();
+ 
     if lexer.last_token == KeywordColon {
         AstStatement::CaseCondition { condition: Box::new(result), id: lexer.next_id() }
     } else {
