@@ -32,9 +32,15 @@ use resolver::TypeAnnotator;
 #[cfg(test)]
 use validation::Validator;
 
-pub mod ast;
 pub mod builtins;
 pub mod codegen;
+use crate::ast::CompilationUnit;
+use crate::diagnostics::Diagnostician;
+use crate::resolver::{AnnotationMapImpl, TypeAnnotator};
+pub mod ast;
+// pub mod build;
+// mod builtins;
+// pub mod cli;
 mod datalayout;
 pub mod diagnostics;
 pub mod expression_path;
