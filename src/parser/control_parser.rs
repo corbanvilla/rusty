@@ -6,11 +6,15 @@ use crate::{
     parser::{parse_any_in_region, parse_body_in_region},
     Diagnostic,
 };
+use log::trace;
 
 use super::ParseSession;
 use super::{parse_expression, parse_reference, parse_statement};
 
 pub fn parse_control_statement(lexer: &mut ParseSession) -> AstStatement {
+    trace!("parse_control_statement: {:?} (at {:?}...{:?})", lexer.token, lexer.range().start, lexer.range().end);
+    // trace!("token scope: {:?}", lexer.scope);
+    trace!("Program slice: {}\n\n", lexer.get_src()[lexer.range().start..lexer.range().end].to_string());
     match lexer.token {
         KeywordIf => parse_if_statement(lexer),
         KeywordFor => parse_for_statement(lexer),
@@ -21,7 +25,7 @@ pub fn parse_control_statement(lexer: &mut ParseSession) -> AstStatement {
         KeywordContinue => parse_continue_statement(lexer),
         KeywordExit => parse_exit_statement(lexer),
         _ => parse_statement(lexer),
-    }
+    } 
 }
 
 fn parse_return_statement(lexer: &mut ParseSession) -> AstStatement {
