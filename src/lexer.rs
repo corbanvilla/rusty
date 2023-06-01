@@ -19,6 +19,10 @@ use crate::Diagnostic;
 mod tests;
 mod tokens;
 
+pub trait ParserCallback {
+    fn on_parse_statement(&mut self);
+}
+
 pub struct ParseSession<'a> {
     lexer: Lexer<'a, Token>,
     pub token: Token,
@@ -32,6 +36,8 @@ pub struct ParseSession<'a> {
     id_provider: IdProvider,
     pub source_range_factory: SourceRangeFactory,
     pub scope: Option<String>,
+    
+    callback: Option<&'a mut dyn ParserCallback>,
 }
 
 #[macro_export]
@@ -65,6 +71,7 @@ impl<'a> ParseSession<'a> {
             id_provider,
             scope: None,
             source_range_factory,
+            callback: None,
         };
         lexer.advance();
         lexer
@@ -243,6 +250,17 @@ impl<'a> ParseSession<'a> {
             }
         }
     }
+
+    pub fn set_callback(&mut self, callback: &'a mut dyn ParserCallback) {
+        self.callback = Some(callback);
+    }
+
+    pub fn do_callback_on_parse_statement(&mut self) {
+        if let Some(callback) = &mut self.callback {
+            callback.on_parse_statement();
+        }
+    }
+
 }
 
 fn parse_pragma(lexer: &mut Lexer<Token>) -> Filter<()> {
@@ -365,7 +383,8 @@ impl Default for IdProvider {
     }
 }
 
-#[cfg(test)]
+// Enable this outside of just test cases
+//#[cfg(test)]
 pub fn lex(source: &str) -> ParseSession {
     ParseSession::new(Token::lexer(source), IdProvider::default(), SourceRangeFactory::internal())
 }
