@@ -60,6 +60,7 @@ pub fn parse(mut lexer: ParseSession, lnk: LinkageType, file_name: &str) -> Pars
                     _ => (PouType::FunctionBlock, KeywordEndFunctionBlock),
                 };
 
+                trace!("Pou type: {:?} (at {:?}...{:?})", params.0, lexer.range().start, lexer.range().end);
                 let (mut pou, mut implementation) = parse_pou(&mut lexer, params.0, linkage, params.1);
 
                 unit.units.append(&mut pou);
@@ -228,6 +229,12 @@ fn parse_pou(
                     name_location.clone(),
                 ));
             }
+            trace!("implementations after main body {implementations:?}");
+
+            if pou_type == PouType::Function {
+                trace!("printed function!");
+            }
+
             let mut pous = vec![Pou {
                 name,
                 pou_type,
@@ -242,6 +249,7 @@ fn parse_pou(
             pous.append(&mut impl_pous);
 
             trace!("implementations final (after non-class/non-func): {implementations:?}");
+
             (pous, implementations)
         })
     });
@@ -470,8 +478,14 @@ fn parse_implementation(
     generic: bool,
     name_location: SourceRange,
 ) -> Implementation {
-    trace!("beginning parse at {}", lexer.range().start);
+    trace!("beginning parse at {} of type {}", lexer.range().start, pou_type);
     let start = lexer.range().start;
+    // NOW we know we are about to parse a function
+    // this is where we can add to the callback
+    if pou_type == PouType::Function {
+        lexer.do_callback_on_parse_function();
+    }
+
     let statements = parse_body_standalone(lexer);
     trace!("end parse at {}", lexer.range().end);
     Implementation {
