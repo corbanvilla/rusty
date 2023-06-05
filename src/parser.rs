@@ -882,8 +882,6 @@ fn parse_statement(lexer: &mut ParseSession) -> AstStatement {
     let result = parse_any_in_region(lexer, vec![KeywordSemicolon, KeywordColon], parse_expression);
     trace!("parse result: {result:#?}");
 
-    lexer.do_callback_on_parse_statement();
- 
     if lexer.last_token == KeywordColon {
         AstStatement::CaseCondition { condition: Box::new(result), id: lexer.next_id() }
     } else {
