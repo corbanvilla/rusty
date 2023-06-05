@@ -20,7 +20,7 @@ mod tests;
 mod tokens;
 
 pub trait ParserCallback {
-    fn on_parse_statement(&mut self, lexer: &Lexer<Token>);
+    fn on_parse_control_statement(&mut self, lexer: &Lexer<Token>, lexer_token: &Token);
 
     fn on_parse_function(&mut self, lexer: &Lexer<Token>); 
 }
@@ -257,10 +257,10 @@ impl<'a> ParseSession<'a> {
         self.callback = Some(callback);
     }
 
-    pub fn do_callback_on_parse_statement(&mut self) {
+    pub fn do_callback_on_parse_control_statement(&mut self) {
         if let Some(callback) = &mut self.callback {
-            callback.on_parse_statement( &self.lexer);
-        }
+            callback.on_parse_control_statement(&self.lexer, &self.token);
+        } 
     }
 
     pub fn do_callback_on_parse_function(&mut self) {

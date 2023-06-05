@@ -15,6 +15,9 @@ pub fn parse_control_statement(lexer: &mut ParseSession) -> AstStatement {
     trace!("parse_control_statement: {:?} (at {:?}...{:?})", lexer.token, lexer.range().start, lexer.range().end);
     // trace!("token scope: {:?}", lexer.scope);
     trace!("Program slice: {}\n\n", lexer.get_src()[lexer.range().start..lexer.range().end].to_string());
+
+    lexer.do_callback_on_parse_control_statement();
+
     match lexer.token {
         KeywordIf => parse_if_statement(lexer),
         KeywordFor => parse_for_statement(lexer),
