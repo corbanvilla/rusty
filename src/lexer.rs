@@ -23,6 +23,8 @@ pub trait ParserCallback {
     fn on_parse_control_statement(&mut self, lexer: &Lexer<Token>, lexer_token: &Token);
 
     fn on_parse_function(&mut self, lexer: &Lexer<Token>); 
+
+    fn on_parse_program(&mut self, lexer: &Lexer<Token>);
 }
 
 pub struct ParseSession<'a> {
@@ -266,6 +268,12 @@ impl<'a> ParseSession<'a> {
     pub fn do_callback_on_parse_function(&mut self) {
         if let Some(callback) = &mut self.callback {
             callback.on_parse_function(&self.lexer);
+        }
+    }
+
+    pub fn do_callback_on_parse_program(&mut self) {
+        if let Some(callback) = &mut self.callback {
+            callback.on_parse_program(&self.lexer);
         }
     }
 
