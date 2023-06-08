@@ -199,6 +199,7 @@ fn parse_pou(
                 variable_blocks.push(parse_variable_block(lexer, LinkageType::Internal));
             }
             trace!("variable_blocks: {variable_blocks:?}");
+            trace!("lexer after variable_blocks: {:?}", lexer.range().end);
 
             let mut impl_pous = vec![];
             let mut implementations = vec![];
@@ -484,6 +485,10 @@ fn parse_implementation(
     // this is where we can add to the callback
     if pou_type == PouType::Function {
         lexer.do_callback_on_parse_function();
+    }
+
+    if pou_type == PouType::Program {
+        lexer.do_callback_on_parse_program();
     }
 
     let statements = parse_body_standalone(lexer);
