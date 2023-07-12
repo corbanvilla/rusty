@@ -61,6 +61,9 @@ mod tests {
     mod adr;
 }
 
+pub mod callbacks;
+use callbacks::LLVMDataTypeCallback;
+
 #[macro_use]
 #[cfg(test)]
 extern crate pretty_assertions;

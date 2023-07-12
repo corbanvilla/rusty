@@ -24,6 +24,8 @@ use crate::{
     DebugLevel, OptimizationLevel, Target,
 };
 
+use crate::callbacks::LLVMDataTypeCallback;
+
 use super::ast::*;
 use super::index::*;
 use indexmap::IndexSet;
@@ -41,7 +43,7 @@ use inkwell::{
 
 mod debug;
 pub(crate) mod generators;
-mod llvm_index;
+pub mod llvm_index;
 mod llvm_typesystem;
 #[cfg(test)]
 mod tests;
