@@ -56,7 +56,7 @@ pub mod ast;
 pub mod build;
 mod builtins;
 pub mod cli;
-mod codegen;
+pub mod codegen;
 mod datalayout;
 pub mod diagnostics;
 pub mod expression_path;
@@ -71,6 +71,9 @@ mod test_utils;
 pub mod runner;
 mod typesystem;
 mod validation;
+
+pub mod callbacks;
+use callbacks::LLVMDataTypeCallback;
 
 #[macro_use]
 #[cfg(test)]
@@ -601,6 +604,7 @@ pub fn compile_module<'c, T: SourceContainer>(
     includes: Vec<T>,
     encoding: Option<&'static Encoding>,
     compile_options: &CompileOptions,
+    callback: Option<&mut dyn LLVMDataTypeCallback>,
 ) -> Result<(Index, CodeGen<'c>), Diagnostic> {
     let mut diagnostician = match compile_options.error_format {
         ErrorFormat::Rich => Diagnostician::default(),
@@ -624,6 +628,9 @@ pub fn compile_module<'c, T: SourceContainer>(
     //Associate the index type with LLVM types
     let llvm_index =
         code_generator.generate_llvm_index(&annotations, index.all_literals, &full_index, &diagnostician)?;
+    if let Some(callback_fn) = callback {
+        callback_fn.on_parse_datatype(llvm_index.clone());
+    }
 
     for unit in index.annotated_units {
         code_generator.generate(&unit, &annotations, &full_index, &llvm_index)?;
@@ -787,6 +794,7 @@ pub fn build_with_subcommand(parameters: CompileParameters) -> Result<(), Diagno
             targets,
             config_options,
             link_options,
+            Option::None,
         )?;
 
         if !project.package_commands.is_empty() {
@@ -874,7 +882,7 @@ fn copy_libs_to_build(libraries: &[Libraries], lib_location: &Path) -> Result<()
 /// Links all provided object files with the compilation result
 /// Links any provided libraries
 /// Returns the location of the output file
-pub fn build_with_params(parameters: CompileParameters) -> Result<(), Diagnostic> {
+pub fn build_with_params(parameters: CompileParameters, callback: Option<&mut dyn LLVMDataTypeCallback>) -> Result<(), Diagnostic> {
     let format = parameters.output_format_or_default();
     let output = parameters.output_name();
 
@@ -927,6 +935,7 @@ pub fn build_with_params(parameters: CompileParameters) -> Result<(), Diagnostic
         targets,
         config_options,
         link_options,
+        callback,
     )
 }
 /// The builder function for the compilation
@@ -942,6 +951,7 @@ pub fn build_and_link(
     targets: Vec<Target>,
     config_options: Option<ConfigurationOptions>,
     link_options: Option<LinkOptions>,
+    callback: Option<&mut dyn LLVMDataTypeCallback>,
 ) -> Result<(), Diagnostic> {
     //Split files in objects and sources
     let mut objects = vec![];
@@ -955,7 +965,7 @@ pub fn build_and_link(
     });
 
     let context = Context::create();
-    let (index, codegen) = compile_module(&context, sources, includes, encoding, compile_options)?;
+    let (index, codegen) = compile_module(&context, sources, includes, encoding, compile_options, callback)?;
 
     if compile_options.format != FormatOption::None {
         let targets = if targets.is_empty() { vec![Target::System] } else { targets };

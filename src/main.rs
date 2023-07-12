@@ -25,6 +25,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     let compile_parameters: Result<CompileParameters, ParameterError> = CompileParameters::parse(&args);
+    // println!("Passing compile params: {:?}", compile_parameters);
     match compile_parameters {
         Ok(cp) => {
             if cp.commands.is_some() {
@@ -32,7 +33,7 @@ fn main() {
                     eprintln!("Error: {msg:?}");
                     std::process::exit(1);
                 }
-            } else if let Err(msg) = build_with_params(cp) {
+            } else if let Err(msg) = build_with_params(cp, Option::None) {
                 eprintln!("Error: {msg:?}");
                 std::process::exit(1);
             }

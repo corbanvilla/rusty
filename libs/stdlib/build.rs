@@ -23,7 +23,7 @@ fn main() {
             args.push("none".to_owned());
         }
     }
-    rusty::build_with_params(rusty::cli::CompileParameters::parse(&args).unwrap()).unwrap();
+    rusty::build_with_params(rusty::cli::CompileParameters::parse(&args).unwrap(), Option::None).unwrap();
     #[cfg(not(target_os = "windows"))]
     Command::new("ar").args(["crs", "libst.a", "st.o"]).current_dir(Path::new(&out_dir)).status().unwrap();
     #[cfg(target_os = "windows")]

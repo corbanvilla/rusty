@@ -87,7 +87,7 @@ pub fn run_no_param<U>(exec_engine: &ExecutionEngine, name: &str) -> U {
 ///
 pub fn compile<T: Compilable>(context: &Context, source: T) -> ExecutionEngine {
     let source = source.containers();
-    let (_, code_gen) = compile_module(context, source, vec![], None, &CompileOptions::default()).unwrap();
+    let (_, code_gen) = compile_module(context, source, vec![], None, &CompileOptions::default(), Option::None).unwrap();
     #[cfg(feature = "debug")]
     code_gen.module.print_to_stderr();
     code_gen.module.create_jit_execution_engine(inkwell::OptimizationLevel::None).unwrap()
