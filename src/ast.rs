@@ -366,6 +366,21 @@ impl CompilationUnit {
         self.implementations.extend(other.implementations);
         self.user_types.extend(other.user_types);
     }
+
+    /// Returns the parent of an AST node, if it exists in the tree
+    pub fn get_parent(&self, search_id: AstId) -> Option<AstStatement> {
+        for implementation in &self.implementations {
+            for statement in &implementation.statements {
+                if let Some(found) = statement.search_children(search_id) {
+                    if found.len() == 1 {
+                        return None;
+                    }
+                    return Some(found[1].clone());
+                }
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Clone)]
@@ -1189,6 +1204,274 @@ impl AstStatement {
     pub fn is_binary_expression(&self) -> bool {
         matches!(self, AstStatement::BinaryExpression { .. })
     }
+
+    // Internal recursive search helper function for lists of statements
+    fn search_children_list(statements: Vec<AstStatement>, search_id: AstId) -> Option<Vec<AstStatement>> {
+        for statement in statements {
+            if let Some(mut found) = statement.search_children(search_id) {
+                found.push(statement.clone());
+                return Some(found);
+            }
+        }
+
+        None
+    }
+
+    /// Performs a depth-first-search, searching the source AST for a particular id.
+    /// Returns a vector of statements, starting from the found statement, to the root
+    pub fn search_children(&self, search_id: AstId) -> Option<Vec<AstStatement>> {
+        // Base case
+        if search_id == self.get_id() {
+            return Some(vec![self.clone()]);
+        }
+
+        // Recurse
+        match self.clone() {
+            AstStatement::EmptyStatement { .. } => None,
+            AstStatement::DefaultValue { .. } => None,
+            AstStatement::Literal { .. } => None,
+            AstStatement::CastStatement { target, .. } => {
+                if let Some(mut found) = target.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::MultipliedStatement { element, .. } => {
+                if let Some(mut found) = element.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::CaseStatement { selector, case_blocks, else_block, .. } => {
+                if let Some(mut found) = selector.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                };
+
+                for case_block in case_blocks {
+                    if let Some(mut found) = AstStatement::search_children_list(case_block.body, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+
+                    if let Some(mut found) = case_block.condition.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+
+                    if let Some(mut found) = AstStatement::search_children_list(else_block.clone(), search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                }
+                None
+            },
+            AstStatement::QualifiedReference { elements, .. } => {
+                if let Some(mut found) = AstStatement::search_children_list(elements, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::Reference { .. } => None,
+            AstStatement::ArrayAccess { reference, access, .. } => {
+                if let Some(mut found) = reference.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = access.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::PointerAccess { reference, .. } => {
+                if let Some(mut found) = reference.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::DirectAccess { index, .. } => {
+                if let Some(mut found) = index.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::HardwareAccess { address , .. } => {
+                if let Some(mut found) = AstStatement::search_children_list(address, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::BinaryExpression { left, right, .. } => {
+                if let Some(mut found) = left.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = right.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::UnaryExpression { value, .. } => {
+                if let Some(mut found) = value.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::ExpressionList { expressions, .. } => {
+                if let Some(mut found) = AstStatement::search_children_list(expressions, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::RangeStatement { start, end, .. } => {
+                if let Some(mut found) = start.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = end.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::VlaRangeStatement { .. } => None,
+            AstStatement::Assignment { left, right, .. } => {
+                if let Some(mut found) = left.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = right.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::OutputAssignment { left, right, .. } => {
+                if let Some(mut found) = left.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = right.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::CallStatement { operator, parameters, .. } => {
+                if let Some(mut found) = operator.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(parameters) = *parameters {
+                    if let Some(mut found) = parameters.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                }
+
+                None
+            },
+            AstStatement::IfStatement { blocks, else_block, .. } => {
+                for case_block in blocks {
+                    if let Some(mut found) = AstStatement::search_children_list(case_block.body, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+
+                    if let Some(mut found) = case_block.condition.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                }
+
+                if let Some(mut found) = AstStatement::search_children_list(else_block, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::ForLoopStatement { counter, start, end, by_step, body, .. } => {
+                if let Some(mut found) = counter.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = start.search_children(search_id) {
+                found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = end.search_children(search_id) {
+                found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(by_step) = by_step {
+                    if let Some(mut found) = by_step.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                }
+
+                if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::WhileLoopStatement { condition, body, .. } => {
+                if let Some(mut found) = condition.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::RepeatLoopStatement { condition, body, .. } => {
+                if let Some(mut found) = condition.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+
+                if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::CaseCondition { condition, .. } => {
+                if let Some(mut found) = condition.search_children(search_id) {
+                    found.push(self.clone());
+                    return Some(found);
+                }
+                None
+            },
+            AstStatement::ExitStatement { .. } => None,
+            AstStatement::ContinueStatement { .. } => None,
+            AstStatement::ReturnStatement { .. } => None,
+        }
+    }
+
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
