@@ -19,7 +19,6 @@ use crate::{
     DebugLevel, OptimizationLevel,
 };
 
-use crate::callbacks::LLVMDataTypeCallback;
 
 use super::ast::*;
 use super::index::*;

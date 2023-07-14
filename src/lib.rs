@@ -54,7 +54,7 @@ use crate::diagnostics::Diagnostician;
 use crate::resolver::{AnnotationMapImpl, TypeAnnotator};
 pub mod ast;
 pub mod build;
-mod builtins;
+pub mod builtins;
 pub mod cli;
 pub mod codegen;
 mod datalayout;

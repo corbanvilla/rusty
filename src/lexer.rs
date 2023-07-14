@@ -13,6 +13,7 @@ use crate::ast::DirectAccessType;
 use crate::ast::HardwareAccessType;
 use crate::ast::SourceRange;
 use crate::ast::SourceRangeFactory;
+use crate::ast::AstStatement;
 use crate::Diagnostic;
 
 #[cfg(test)]
@@ -20,11 +21,13 @@ mod tests;
 mod tokens;
 
 pub trait ParserCallback {
+    // Control Flow
     fn on_parse_control_statement(&mut self, lexer: &Lexer<Token>, lexer_token: &Token);
-
     fn on_parse_function(&mut self, lexer: &Lexer<Token>); 
-
     fn on_parse_program(&mut self, lexer: &Lexer<Token>);
+
+    // Other
+    fn on_parse_call_statement(&mut self, lexer: &Lexer<Token>, call_statement: &AstStatement);
 }
 
 pub struct ParseSession<'a> {
@@ -274,6 +277,12 @@ impl<'a> ParseSession<'a> {
     pub fn do_callback_on_parse_program(&mut self) {
         if let Some(callback) = &mut self.callback {
             callback.on_parse_program(&self.lexer);
+        }
+    }
+
+    pub fn do_callback_on_parse_call_statement(&mut self, call_statement: &AstStatement) {
+        if let Some(callback) = &mut self.callback {
+            callback.on_parse_call_statement(&self.lexer, call_statement);
         }
     }
 
