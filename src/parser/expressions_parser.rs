@@ -440,6 +440,9 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Result<AstStatemen
                 id: lexer.next_id(),
             })
         };
+        // Note - it may be necessary to investigate the if statement more thoroughly,
+        // if we get call issues later on
+        lexer.do_callback_on_parse_call_statement(&call_statement);
         Ok(call_statement)
     } else {
         Ok(reference)
