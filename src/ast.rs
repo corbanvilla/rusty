@@ -387,6 +387,57 @@ impl CompilationUnit {
         }
         None
     }
+
+    /// Returns the path to an AST node, as a vector of AstStatements
+    /// The first element is the element itself, the last element is the root of the tree
+    pub fn get_element_path(&self, search_id: AstId) -> Option<Vec<AstStatement>> {
+        for implementation in &self.implementations {
+            for statement in &implementation.statements {
+                if let Some(found) = statement.search_children(search_id) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    /// Returns the main program pou
+    pub fn get_main_pou(&self) -> Option<&Pou> {
+        let all_programs: Vec<&Pou> =
+            self.units.iter().filter(|pou| pou.pou_type == PouType::Program).collect();
+        if all_programs.len() > 1 {
+            panic!("There are multiple programs in this file.")
+        }
+        if all_programs.is_empty() {
+            return None;
+        }
+        Some(all_programs[0].clone())
+    }
+
+    /// Returns a pou by name
+    pub fn get_pou_by_name(&self, name: &str) -> Option<&Pou> {
+        self.units.iter().find(|pou| pou.name == name)
+    }
+
+    /// Get implementation for an ast node
+    pub fn get_implementation(&self, search_id: AstId) -> Option<&Implementation> {
+        for implementation in &self.implementations {
+            for statement in &implementation.statements {
+                if statement.search_children(search_id).is_some() {
+                    return Some(implementation);
+                }
+            }
+        }
+        None
+    }
+
+    /// Get an ast node by id
+    pub fn get_node_by_id(&self, search_id: AstId) -> Option<AstStatement> {
+        if let Some(path) = self.get_element_path(search_id) {
+            return Some(path[0].clone());
+        }
+        None
+    }
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Clone)]
@@ -1207,14 +1258,14 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::MultipliedStatement { element, .. } => {
                 if let Some(mut found) = element.search_children(search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::CaseStatement { selector, case_blocks, else_block, .. } => {
                 if let Some(mut found) = selector.search_children(search_id) {
                     found.push(self.clone());
@@ -1232,20 +1283,21 @@ impl AstStatement {
                         return Some(found);
                     }
 
-                    if let Some(mut found) = AstStatement::search_children_list(else_block.clone(), search_id) {
+                    if let Some(mut found) = AstStatement::search_children_list(else_block.clone(), search_id)
+                    {
                         found.push(self.clone());
                         return Some(found);
                     }
                 }
                 None
-            },
+            }
             AstStatement::QualifiedReference { elements, .. } => {
                 if let Some(mut found) = AstStatement::search_children_list(elements, search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::Reference { .. } => None,
             AstStatement::ArrayAccess { reference, access, .. } => {
                 if let Some(mut found) = reference.search_children(search_id) {
@@ -1258,28 +1310,28 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::PointerAccess { reference, .. } => {
                 if let Some(mut found) = reference.search_children(search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::DirectAccess { index, .. } => {
                 if let Some(mut found) = index.search_children(search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
-            AstStatement::HardwareAccess { address , .. } => {
+            }
+            AstStatement::HardwareAccess { address, .. } => {
                 if let Some(mut found) = AstStatement::search_children_list(address, search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::BinaryExpression { left, right, .. } => {
                 if let Some(mut found) = left.search_children(search_id) {
                     found.push(self.clone());
@@ -1291,21 +1343,21 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::UnaryExpression { value, .. } => {
                 if let Some(mut found) = value.search_children(search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::ExpressionList { expressions, .. } => {
                 if let Some(mut found) = AstStatement::search_children_list(expressions, search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::RangeStatement { start, end, .. } => {
                 if let Some(mut found) = start.search_children(search_id) {
                     found.push(self.clone());
@@ -1317,7 +1369,7 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::VlaRangeStatement { .. } => None,
             AstStatement::Assignment { left, right, .. } => {
                 if let Some(mut found) = left.search_children(search_id) {
@@ -1330,7 +1382,7 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::OutputAssignment { left, right, .. } => {
                 if let Some(mut found) = left.search_children(search_id) {
                     found.push(self.clone());
@@ -1342,7 +1394,7 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::CallStatement { operator, parameters, .. } => {
                 if let Some(mut found) = operator.search_children(search_id) {
                     found.push(self.clone());
@@ -1357,7 +1409,7 @@ impl AstStatement {
                 }
 
                 None
-            },
+            }
             AstStatement::IfStatement { blocks, else_block, .. } => {
                 for case_block in blocks {
                     if let Some(mut found) = AstStatement::search_children_list(case_block.body, search_id) {
@@ -1376,7 +1428,7 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::ForLoopStatement { counter, start, end, by_step, body, .. } => {
                 if let Some(mut found) = counter.search_children(search_id) {
                     found.push(self.clone());
@@ -1384,12 +1436,12 @@ impl AstStatement {
                 }
 
                 if let Some(mut found) = start.search_children(search_id) {
-                found.push(self.clone());
+                    found.push(self.clone());
                     return Some(found);
                 }
 
                 if let Some(mut found) = end.search_children(search_id) {
-                found.push(self.clone());
+                    found.push(self.clone());
                     return Some(found);
                 }
 
@@ -1405,7 +1457,7 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::WhileLoopStatement { condition, body, .. } => {
                 if let Some(mut found) = condition.search_children(search_id) {
                     found.push(self.clone());
@@ -1417,7 +1469,7 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::RepeatLoopStatement { condition, body, .. } => {
                 if let Some(mut found) = condition.search_children(search_id) {
                     found.push(self.clone());
@@ -1429,20 +1481,19 @@ impl AstStatement {
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::CaseCondition { condition, .. } => {
                 if let Some(mut found) = condition.search_children(search_id) {
                     found.push(self.clone());
                     return Some(found);
                 }
                 None
-            },
+            }
             AstStatement::ExitStatement { .. } => None,
             AstStatement::ContinueStatement { .. } => None,
             AstStatement::ReturnStatement { .. } => None,
         }
     }
-
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
