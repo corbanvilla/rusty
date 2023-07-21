@@ -26,7 +26,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     args.push("--single-module".to_owned());
 
-    plc_driver::compile(&args).unwrap();
+    plc_driver::compile(&args, None).unwrap();
     #[cfg(not(target_os = "windows"))]
     Command::new("ar").args(["crs", "libst.a", "st.o"]).current_dir(Path::new(&out_dir)).status().unwrap();
     #[cfg(target_os = "windows")]
