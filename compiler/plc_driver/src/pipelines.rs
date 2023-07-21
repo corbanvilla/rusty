@@ -3,6 +3,7 @@ use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 use crate::{CompileOptions, LinkOptions};
@@ -11,6 +12,7 @@ use diagnostics::{Diagnostic, Diagnostician};
 use encoding_rs::Encoding;
 use indexmap::IndexSet;
 use plc::{
+    callbacks::LLVMDataTypeCallback,
     codegen::{CodegenContext, GeneratedModule},
     index::Index,
     lexer::IdProvider,
@@ -220,7 +222,7 @@ impl AnnotatedProject {
             .iter()
             .map(|(unit, dependencies, literals)| {
                 let context = CodegenContext::create();
-                self.generate_module(&context, compile_options, unit, dependencies, literals)
+                self.generate_module(&context, compile_options, unit, dependencies, literals, None)
                     .map(|it| it.persist_to_string())
             })
             .collect()
@@ -230,9 +232,10 @@ impl AnnotatedProject {
         &self,
         context: &'ctx CodegenContext,
         compile_options: &CompileOptions,
+        callback: Option<Arc<Mutex<dyn LLVMDataTypeCallback>>>,
     ) -> Result<Option<GeneratedModule<'ctx>>, Diagnostic> {
         let Some(module) = self.units.iter().map(|(unit, dependencies, literals)| {
-            self.generate_module(context, compile_options, unit, dependencies, literals)
+            self.generate_module(context, compile_options, unit, dependencies, literals, callback.clone())
         }).reduce(|a,b| {
             let a = a?;
             let b = b?;
@@ -250,6 +253,7 @@ impl AnnotatedProject {
         unit: &CompilationUnit,
         dependencies: &IndexSet<Dependency>,
         literals: &StringLiterals,
+        callback: Option<Arc<Mutex<dyn LLVMDataTypeCallback>>>,
     ) -> Result<GeneratedModule<'ctx>, Diagnostic> {
         let mut code_generator = plc::codegen::CodeGen::new(
             context,
@@ -267,6 +271,10 @@ impl AnnotatedProject {
             dependencies,
             &self.index,
         )?;
+        if let Some(callback) = callback {
+            let mut callback_guard = callback.lock().unwrap();
+            callback_guard.on_parse_datatype(llvm_index.clone());
+        }
         code_generator.generate(context, unit, &self.annotations, &self.index, &llvm_index)
     }
 
@@ -274,6 +282,7 @@ impl AnnotatedProject {
         &'ctx self,
         compile_options: CompileOptions,
         targets: &'ctx [Target],
+        callback: Option<Arc<Mutex<dyn LLVMDataTypeCallback>>>,
     ) -> Result<Vec<GeneratedProject>, Diagnostic> {
         let compile_directory = compile_options.build_location.clone().unwrap_or_else(|| {
             let tempdir = tempfile::tempdir().unwrap();
@@ -282,7 +291,7 @@ impl AnnotatedProject {
         ensure_compile_dirs(targets, &compile_directory)?;
         let context = CodegenContext::create(); //Create a build location for the generated object files
         let targets = if targets.is_empty() { &[Target::System] } else { targets };
-        let module = self.generate_single_module(&context, &compile_options)?.unwrap();
+        let module = self.generate_single_module(&context, &compile_options, callback)?.unwrap();
         let mut result = vec![];
         for target in targets {
             let obj: Object = module
@@ -305,6 +314,7 @@ impl AnnotatedProject {
         &'ctx self,
         compile_options: CompileOptions,
         targets: &'ctx [Target],
+        callback: Option<Arc<Mutex<dyn LLVMDataTypeCallback>>>,
     ) -> Result<Vec<GeneratedProject>, Diagnostic> {
         let compile_directory = compile_options.build_location.clone().unwrap_or_else(|| {
             let tempdir = tempfile::tempdir().unwrap();
@@ -339,8 +349,14 @@ impl AnnotatedProject {
                         };
 
                         let context = CodegenContext::create(); //Create a build location for the generated object files
-                        let module =
-                            self.generate_module(&context, &compile_options, unit, dependencies, literals)?;
+                        let module = self.generate_module(
+                            &context,
+                            &compile_options,
+                            unit,
+                            dependencies,
+                            literals,
+                            callback.clone(),
+                        )?;
                         module
                             .persist(
                                 Some(&compile_directory),

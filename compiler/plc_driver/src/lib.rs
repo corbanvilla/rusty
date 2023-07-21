@@ -13,11 +13,15 @@ use std::{
     ffi::OsStr,
     fmt::Debug,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 use cli::CompileParameters;
 use diagnostics::{Diagnostic, Diagnostician};
-use plc::{lexer::IdProvider, output::FormatOption, DebugLevel, ErrorFormat, OptimizationLevel, Threads};
+use plc::{
+    callbacks::LLVMDataTypeCallback, lexer::IdProvider, output::FormatOption, DebugLevel, ErrorFormat,
+    OptimizationLevel, Threads,
+};
 use project::project::{LibraryInformation, Project};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use source_code::SourceContainer;
@@ -70,7 +74,10 @@ pub struct LinkOptions {
     pub linker: Option<String>,
 }
 
-pub fn compile<T: AsRef<str> + AsRef<OsStr> + Debug>(args: &[T]) -> Result<(), Diagnostic> {
+pub fn compile<T: AsRef<str> + AsRef<OsStr> + Debug>(
+    args: &[T],
+    callback: Option<Arc<Mutex<dyn LLVMDataTypeCallback>>>,
+) -> Result<(), Diagnostic> {
     //Parse the arguments
     let compile_parameters = CompileParameters::parse(args)?;
     let project = get_project(&compile_parameters)?;
@@ -134,6 +141,7 @@ pub fn compile<T: AsRef<str> + AsRef<OsStr> + Debug>(args: &[T]) -> Result<(), D
             annotated_project,
             build_location,
             lib_location,
+            callback,
         )?;
     }
 
@@ -148,6 +156,7 @@ fn generate(
     annotated_project: pipelines::AnnotatedProject,
     build_location: Option<PathBuf>,
     lib_location: Option<PathBuf>,
+    callback: Option<Arc<Mutex<dyn LLVMDataTypeCallback>>>,
 ) -> Result<(), Diagnostic> {
     let compile_options = CompileOptions {
         root: location,
@@ -160,9 +169,9 @@ fn generate(
     };
     let res = if compile_parameters.single_module {
         log::info!("Using single module mode");
-        annotated_project.codegen_single_module(compile_options, &compile_parameters.target)?
+        annotated_project.codegen_single_module(compile_options, &compile_parameters.target, callback)?
     } else {
-        annotated_project.codegen(compile_options, &compile_parameters.target)?
+        annotated_project.codegen(compile_options, &compile_parameters.target, callback)?
     };
     let libraries =
         project.get_libraries().iter().map(LibraryInformation::get_link_name).map(str::to_string).collect();

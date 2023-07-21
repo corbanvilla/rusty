@@ -40,7 +40,7 @@ pub fn compile<T: Compilable>(context: &CodegenContext, source: T) -> GeneratedM
         ..Default::default()
     };
 
-    annotated_project.generate_single_module(context, &compile_options).unwrap().unwrap()
+    annotated_project.generate_single_module(context, &compile_options, None).unwrap().unwrap()
 }
 
 ///
