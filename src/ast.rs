@@ -1266,28 +1266,10 @@ impl AstStatement {
                 }
                 None
             }
-            AstStatement::CaseStatement { selector, case_blocks, else_block, .. } => {
-                if let Some(mut found) = selector.search_children(search_id) {
+            AstStatement::CaseCondition { condition, .. } => {
+                if let Some(mut found) = condition.search_children(search_id) {
                     found.push(self.clone());
                     return Some(found);
-                };
-
-                for case_block in case_blocks {
-                    if let Some(mut found) = AstStatement::search_children_list(case_block.body, search_id) {
-                        found.push(self.clone());
-                        return Some(found);
-                    }
-
-                    if let Some(mut found) = case_block.condition.search_children(search_id) {
-                        found.push(self.clone());
-                        return Some(found);
-                    }
-
-                    if let Some(mut found) = AstStatement::search_children_list(else_block.clone(), search_id)
-                    {
-                        found.push(self.clone());
-                        return Some(found);
-                    }
                 }
                 None
             }
@@ -1410,85 +1392,111 @@ impl AstStatement {
 
                 None
             }
-            AstStatement::IfStatement { blocks, else_block, .. } => {
-                for case_block in blocks {
-                    if let Some(mut found) = AstStatement::search_children_list(case_block.body, search_id) {
+            AstStatement::ControlStatement { kind, .. } => match kind {
+                AstControlStatement::If(IfStatement { blocks, else_block, .. }) => {
+                    for case_block in blocks {
+                        if let Some(mut found) =
+                            AstStatement::search_children_list(case_block.body, search_id)
+                        {
+                            found.push(self.clone());
+                            return Some(found);
+                        }
+
+                        if let Some(mut found) = case_block.condition.search_children(search_id) {
+                            found.push(self.clone());
+                            return Some(found);
+                        }
+                    }
+
+                    if let Some(mut found) = AstStatement::search_children_list(else_block, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                    None
+                }
+                AstControlStatement::ForLoop(ForLoopStatement {
+                    counter, start, end, by_step, body, ..
+                }) => {
+                    if let Some(mut found) = counter.search_children(search_id) {
                         found.push(self.clone());
                         return Some(found);
                     }
 
-                    if let Some(mut found) = case_block.condition.search_children(search_id) {
+                    if let Some(mut found) = start.search_children(search_id) {
                         found.push(self.clone());
                         return Some(found);
                     }
-                }
 
-                if let Some(mut found) = AstStatement::search_children_list(else_block, search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
-                None
-            }
-            AstStatement::ForLoopStatement { counter, start, end, by_step, body, .. } => {
-                if let Some(mut found) = counter.search_children(search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
-
-                if let Some(mut found) = start.search_children(search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
-
-                if let Some(mut found) = end.search_children(search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
-
-                if let Some(by_step) = by_step {
-                    if let Some(mut found) = by_step.search_children(search_id) {
+                    if let Some(mut found) = end.search_children(search_id) {
                         found.push(self.clone());
                         return Some(found);
                     }
-                }
 
-                if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
-                None
-            }
-            AstStatement::WhileLoopStatement { condition, body, .. } => {
-                if let Some(mut found) = condition.search_children(search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
+                    if let Some(by_step) = by_step {
+                        if let Some(mut found) = by_step.search_children(search_id) {
+                            found.push(self.clone());
+                            return Some(found);
+                        }
+                    }
 
-                if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
-                    found.push(self.clone());
-                    return Some(found);
+                    if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                    None
                 }
-                None
-            }
-            AstStatement::RepeatLoopStatement { condition, body, .. } => {
-                if let Some(mut found) = condition.search_children(search_id) {
-                    found.push(self.clone());
-                    return Some(found);
-                }
+                AstControlStatement::WhileLoop(LoopStatement { condition, body, .. }) => {
+                    if let Some(mut found) = condition.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
 
-                if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
-                    found.push(self.clone());
-                    return Some(found);
+                    if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                    None
                 }
-                None
-            }
-            AstStatement::CaseCondition { condition, .. } => {
-                if let Some(mut found) = condition.search_children(search_id) {
-                    found.push(self.clone());
-                    return Some(found);
+                AstControlStatement::RepeatLoop(LoopStatement { condition, body, .. }) => {
+                    if let Some(mut found) = condition.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+
+                    if let Some(mut found) = AstStatement::search_children_list(body, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+                    None
                 }
-                None
-            }
+                AstControlStatement::Case(CaseStatement { selector, case_blocks, else_block }) => {
+                    if let Some(mut found) = selector.search_children(search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+
+                    for case_block in case_blocks {
+                        if let Some(mut found) =
+                            AstStatement::search_children_list(case_block.body, search_id)
+                        {
+                            found.push(self.clone());
+                            return Some(found);
+                        }
+
+                        if let Some(mut found) = case_block.condition.search_children(search_id) {
+                            found.push(self.clone());
+                            return Some(found);
+                        }
+                    }
+
+                    if let Some(mut found) = AstStatement::search_children_list(else_block, search_id) {
+                        found.push(self.clone());
+                        return Some(found);
+                    }
+
+                    None
+                }
+            },
             AstStatement::ExitStatement { .. } => None,
             AstStatement::ContinueStatement { .. } => None,
             AstStatement::ReturnStatement { .. } => None,

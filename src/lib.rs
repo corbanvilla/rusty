@@ -41,7 +41,6 @@ pub mod ast;
 // pub mod build;
 // mod builtins;
 // pub mod cli;
-pub mod codegen;
 mod datalayout;
 pub mod diagnostics;
 pub mod expression_path;
