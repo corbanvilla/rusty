@@ -12,10 +12,11 @@ coverage=0
 release=0
 debug=1
 container=0
-assume_linux=0
+assume_linux=1
 junit=0
-package=1
+package=0
 target=""
+# target="x86_64-unknown-linux-musl"
 
 CONTAINER_NAME='rust-llvm'
 

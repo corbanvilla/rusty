@@ -6,7 +6,8 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let mut args = vec![
         "plc".to_owned(),
-        "iec61131-st/*.st".to_owned(),
+        "iec61131-st/**/*.st".to_owned(),
+        "-g".to_owned(),
         "-c".to_owned(),
         "-o".to_owned(),
         format!("{out_dir}/st.o"),

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-debug=0
+debug=1
 function log() {
 	if [[ $debug -ne 0 ]]; then
 		>&2 echo "$1"
@@ -26,6 +26,7 @@ function check_env() {
 }
 
 function get_compiler() {
+	# res=musl-gcc
 	log "Trying clang"
 	res=
 	if command -v clang &> /dev/null
