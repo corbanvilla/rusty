@@ -161,8 +161,9 @@ impl<'ink> CodeGen<'ink> {
             .map(|f| String::from(f.get_qualified_name()))
             .collect();
 
+        std::fs::create_dir_all("./interfaces").expect("Unable to create interfaces directory");
         for program in programs {
-            let program_entry = match global_index.get_pous().get(&program) {
+            let program_entry = match global_index.get_pous().get(&program.to_lowercase()) {
                 Some(program) => program,
                 None => {
                     println!("Skipping program with no POU: {}", program);
@@ -178,7 +179,6 @@ impl<'ink> CodeGen<'ink> {
             };
             let sizes = program_type.get_type_information().get_struct_member_sizes(global_index);
 
-            std::fs::create_dir_all("./interfaces").expect("Unable to create interfaces directory");
             let json_data = serde_json::to_string_pretty(&json!(sizes)).expect("Unable to serialize JSON");
             let file_name = format!("./interfaces/{}.json", program);
             let mut file = File::create(file_name).expect("Unable to create file");
