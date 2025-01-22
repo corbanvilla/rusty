@@ -162,8 +162,20 @@ impl<'ink> CodeGen<'ink> {
             .collect();
 
         for program in programs {
-            let program_entry = global_index.get_pous().get(&program).unwrap();
-            let program_type = program_entry.find_instance_struct_type(global_index).unwrap();
+            let program_entry = match global_index.get_pous().get(&program) {
+                Some(program) => program,
+                None => {
+                    println!("Skipping program with no POU: {}", program);
+                    continue;
+                }
+            };
+            let program_type = match program_entry.find_instance_struct_type(global_index) {
+                Some(program_type) => program_type,
+                None => {
+                    println!("Skipping program with no POU TYPE: {}", program);
+                    continue;
+                }
+            };
             let sizes = program_type.get_type_information().get_struct_member_sizes(global_index);
 
             std::fs::create_dir_all("./interfaces").expect("Unable to create interfaces directory");
