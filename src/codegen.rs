@@ -43,6 +43,9 @@ use inkwell::{
 use plc_ast::ast::{CompilationUnit, LinkageType};
 use plc_diagnostics::diagnostics::Diagnostic;
 use plc_source::source_location::SourceLocation;
+use serde_json::json;
+use std::fs::File;
+use std::io::Write;
 
 mod debug;
 pub(crate) mod generators;
@@ -151,6 +154,24 @@ impl<'ink> CodeGen<'ink> {
                 acc.push(format!("{}_instance", p.get_name()));
                 acc
             });
+
+        let programs: Vec<String> = global_index
+            .get_program_instances()
+            .into_iter()
+            .map(|f| String::from(f.get_qualified_name()))
+            .collect();
+
+        for program in programs {
+            let program_entry = global_index.get_pous().get(&program).unwrap();
+            let program_type = program_entry.find_instance_struct_type(global_index).unwrap();
+            let sizes = program_type.get_type_information().get_struct_member_sizes(global_index);
+
+            std::fs::create_dir_all("./interfaces").expect("Unable to create interfaces directory");
+            let json_data = serde_json::to_string_pretty(&json!(sizes)).expect("Unable to serialize JSON");
+            let file_name = format!("./interfaces/{}.json", program);
+            let mut file = File::create(file_name).expect("Unable to create file");
+            file.write_all(json_data.to_string().as_bytes()).expect("Unable to write data");
+        }
 
         let functions = global_index.get_pous().values().filter_map(|p| match p {
             PouIndexEntry::Function { name, linkage: LinkageType::Internal, is_generated: false, .. }

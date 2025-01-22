@@ -11,6 +11,8 @@ use plc_ast::{
 };
 use plc_source::source_location::SourceLocation;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     datalayout::{Bytes, MemoryLocation},
     index::{const_expressions::ConstId, Index, VariableIndexEntry},
@@ -425,6 +427,19 @@ pub enum DataTypeInformation {
     Void,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProgramInterface {
+    pub total_size: u32,
+    pub members_info: Vec<MemberInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MemberInfo {
+    pub name: String,
+    pub size: u32,
+    pub position: u32,
+}
+
 impl DataTypeInformation {
     pub fn get_name(&self) -> &str {
         match self {
@@ -652,6 +667,29 @@ impl DataTypeInformation {
                 .map(|it| it.get_size(index))
                 .unwrap_or_else(|| Bytes::from_bits(DINT_SIZE)),
             DataTypeInformation::Generic { .. } | DataTypeInformation::Void => Bytes::from_bits(0),
+        }
+    }
+
+    pub fn get_struct_member_sizes(&self, index: &Index) -> Option<ProgramInterface> {
+        match self {
+            DataTypeInformation::Struct { members, .. } => {
+                let mut members_info = Vec::new();
+                let mut current_location = MemoryLocation::new(0);
+
+                for member in members.iter() {
+                    let type_info = index.get_type_information_or_void(member.get_type_name());
+                    let name = String::from(member.get_name());
+                    let size = type_info.get_size(index).value();
+                    let position = current_location.align_to(type_info.get_alignment(index)).value();
+                    members_info.push(MemberInfo { name, size, position });
+                    current_location = MemoryLocation::new(position + size);
+                }
+
+                let total_size = self.get_size(index).value();
+
+                Some(ProgramInterface { total_size, members_info })
+            }
+            _ => None,
         }
     }
 
